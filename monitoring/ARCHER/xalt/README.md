@@ -42,5 +42,44 @@ XALT on ARCHER is setup across two different hosts:
 * On a separate VM used for archiving the XALT JSON data, hosting the
   XALT database and ingesting the JSON data into the databse.
 
+### XALT ARCHER Data Flow ###
+
+1. When a user links or runs (using aprun) then a JSON file is written
+   to "/home/y07/y07/xalt/${USER}".
+2. Twice a day these JSON files are synced to the "archer-logs,epcc.ed.ac.uk"
+   VM using a cron job running on the VM.
+3. Twice a day the data in the JSON files are ingested into the XALT
+   database and then archived (using zip) to save space. This is done
+   by the "xalt_ingest_and_archive.bash" script.
+
 ## Building and installing XALT for ARCHER ##
 
+### Build and Install ###
+
+The standard build instructions for XALT from the documentation were 
+followed to install XALT on ARCHER in "/home/y07/y07/cse/xalt/0.6.0".
+
+### Changes to the source ###
+
+Once the standard install was completed we made the changes required to 
+customise the environment for ARCHER.
+
+Patch files in this repository describe the changes made to the XALT 0.6.0
+source for ARCHER.
+
+### Create the XALT modulefile ###
+
+The "xalt" module sets the following environment variables:
+
+* ALT_LINKER=/home/y07/y07/cse/xalt/0.6.0/bin/ld
+* XALT_TRANSMISSION_STYLE=file
+* XALT_ETC_DIR=/home/y07/y07/cse/xalt/0.6.0/etc 
+* XALT_DIR=/home/y07/y07/cse/xalt/0.6.0 
+* XALT_FILE_TRANSMIT_LOC=/home/y07/y07/xalt/${USER}
+
+and adds the following paths:
+
+* PATH + /home/y07/y07/cse/xalt/0.6.0/bin 
+* PATH + /home/y07/y07/cse/xalt/0.6.0/libexec 
+* PYTHONPATH + /home/y07/y07/cse/xalt/0.6.0/libexec 
+* PYTHONPATH + /home/y07/y07/cse/xalt/0.6.0/site 
