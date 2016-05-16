@@ -1,0 +1,75 @@
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/bin/ld 0.6.0/bin/ld
+--- 0.6.0.orig/bin/ld	2016-01-22 19:40:30.116621000 +0000
++++ 0.6.0/bin/ld	2016-05-16 14:27:54.067549000 +0100
+@@ -129,7 +129,12 @@
+ ARGOBJ=$WRKDIR/xalt.o
+ FUNCRAW=$WRKDIR/funcraw.txt
+ FUNCLIST=$WRKDIR/funclist.txt
++
++# **EPCC** Modified so that we can set the file location with an environment variable
+ RESULT=$HOME/.xalt.d/link.${SYSHOST}.${DATESTR}.$UUID.json
++if [ -n "$XALT_FILE_TRANSMIT_LOC" ]; then
++   RESULT=${XALT_FILE_TRANSMIT_LOC}/link.${SYSHOST}.${DATESTR}.$UUID.json
++fi
+ 
+ if [ ! -d $WRKDIR ]; then
+   $MKDIR -p $WRKDIR
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/bin/xalt_helper_functions.sh 0.6.0/bin/xalt_helper_functions.sh
+--- 0.6.0.orig/bin/xalt_helper_functions.sh	2016-01-22 19:40:30.128610000 +0000
++++ 0.6.0/bin/xalt_helper_functions.sh	2016-05-03 16:19:09.198353000 +0100
+@@ -206,6 +206,11 @@
+   EXEC_T='[{"exec_prog": "unknown", "ntask": 1} ]'
+   if [ "$FIND_EXEC_PRGM" != "unknown" -a -f "$FIND_EXEC_PRGM" ]; then
+     EXEC_T=$($MY_PYTHON $FIND_EXEC_PRGM "$@")
++    # **EPCC** Add original command string to options
++    # This is needed in case the command or options contains double quotes
++    safeCmd="$MY_CMD $@"
++    safeCmd=${safeCmd//\"/\\\"}
++    EXEC_T=${EXEC_T/\}\]/, \"run_line\": \"$safeCmd\"\}\]}
+   fi
+ 
+   tracing_msg "run_real_command: User's EXEC_T: $EXEC_T"
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/libexec/XALTdb.py 0.6.0/libexec/XALTdb.py
+--- 0.6.0.orig/libexec/XALTdb.py	2016-01-22 19:40:30.229616000 +0000
++++ 0.6.0/libexec/XALTdb.py	2016-05-16 14:28:55.513857000 +0100
+@@ -115,7 +115,8 @@
+     n = 100
+     for i in xrange(0,n+1):
+       try:
+-        self.__conn = MySQLdb.connect (self.__host,self.__user,self.__passwd, use_unicode=True, charset="utf8")
++        # **EPCC** Modified for custom socket location
++        self.__conn = MySQLdb.connect (self.__host,self.__user,self.__passwd, use_unicode=True, charset="utf8", unix_socket="/var/lib/mysql/mysql.sock")
+         if (databaseName):
+           cursor = self.__conn.cursor()
+           
+@@ -191,12 +192,16 @@
+       if 'function' in linkT:
+         for func_name in linkT['function']:
+           query = "SELECT func_id FROM xalt_function WHERE function_name=%s"
+-          cursor.execute(query, (func_name[:255]))
++          # **EPCC** Only seems to work for single characters?
++          #cursor.execute(query, (func_name[:255]))
++          cursor.execute(query, (func_name[:1]))
+           if (cursor.rowcount > 0):
+             func_id = int(cursor.fetchone()[0])
+           else:
+             query = "INSERT INTO xalt_function VALUES (NULL, %s)"
+-            cursor.execute(query, (func_name[:255]))
++          # **EPCC** Only seems to work for single characters?
++            # cursor.execute(query, (func_name[:255]))
++            cursor.execute(query, (func_name[:1]))
+             func_id = cursor.lastrowid
+         
+           query = "INSERT INTO join_link_function VALUES(NULL, %s, %s) \
+@@ -311,14 +316,17 @@
+         num_threads   = convertToTinyInt(runT['userT'].get('num_threads',0))
+         job_num_cores = int(runT['userT'].get('job_num_cores',0))
+         startTime     = "%.f" % runT['userT']['start_time']
+-        query  = "INSERT INTO xalt_run VALUES (NULL, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s)"
++        # **EPCC** Updated query to add additional properties
++        query  = "INSERT INTO xalt_run VALUES (NULL, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s,%s,%s, %s)"
+         cursor.execute(query, (runT['userT']['job_id'][:64], runT['userT']['run_uuid'],    dateTimeStr,
+                                runT['userT']['syshost'],     uuid,                         runT['hash_id'],
+                                runT['userT']['account'][:20],runT['userT']['exec_type'],   startTime,
+                                endTime,                      runTime,                      runT['userT']['num_cores'],
+                                job_num_corepacket_write_wait: Connection to 193.62.216.44: Broken pipe
