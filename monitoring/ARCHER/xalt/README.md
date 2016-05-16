@@ -52,6 +52,17 @@ XALT on ARCHER is setup across two different hosts:
    database and then archived (using zip) to save space. This is done
    by the "xalt_ingest_and_archive.bash" script.
 
+### crontab on DB server ###
+
+The dataflow was designed so that no cron processes are required to run
+on ARCHER itself. Instead, the DB server logs into ARCHER periodically
+and collects new JSON files (removing them as it goes).
+
+Once the data has been moved across to the DB server another crontab
+entry ingests the data into the XALT database.
+
+The crontab in this repository shows the commands used.
+
 ## Building and installing XALT for ARCHER ##
 
 ### Build and Install ###
@@ -64,8 +75,19 @@ followed to install XALT on ARCHER in "/home/y07/y07/cse/xalt/0.6.0".
 Once the standard install was completed we made the changes required to 
 customise the environment for ARCHER.
 
-Patch files in this repository describe the changes made to the XALT 0.6.0
+The patch file in this repository describe the changes made to the XALT 0.6.0
 source for ARCHER.
+
+### Changes to the XALT database ###
+
+A number of additional columns were added to the "xalt_run" table in the 
+XALT database to accommodate the additional data fields collected by our
+custom installation. These are:
+
+* tasks_per_node: int(11)
+* tasks_per_socket: int(11)
+* hw_threads: int(11)
+* launch_command: varchar(1024)
 
 ### Create the XALT modulefile ###
 
@@ -79,7 +101,7 @@ The "xalt" module sets the following environment variables:
 
 and adds the following paths:
 
-* PATH + /home/y07/y07/cse/xalt/0.6.0/bin 
-* PATH + /home/y07/y07/cse/xalt/0.6.0/libexec 
-* PYTHONPATH + /home/y07/y07/cse/xalt/0.6.0/libexec 
-* PYTHONPATH + /home/y07/y07/cse/xalt/0.6.0/site 
+* PATH += /home/y07/y07/cse/xalt/0.6.0/bin 
+* PATH += /home/y07/y07/cse/xalt/0.6.0/libexec 
+* PYTHONPATH += /home/y07/y07/cse/xalt/0.6.0/libexec 
+* PYTHONPATH += /home/y07/y07/cse/xalt/0.6.0/site 
