@@ -72,4 +72,297 @@ diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/libexec/XALTdb.py 0.6.0/libexec/XAL
                                 runT['userT']['syshost'],     uuid,                         runT['hash_id'],
                                 runT['userT']['account'][:20],runT['userT']['exec_type'],   startTime,
                                 endTime,                      runTime,                      runT['userT']['num_cores'],
-                                job_num_corepacket_write_wait: Connection to 193.62.216.44: Broken pipe
+                                job_num_cores,                runT['userT']['num_nodes'],   num_threads,
+                                runT['userT']['queue'][:32],  exit_status,                  runT['userT']['user'],
+-                               runT['userT']['exec_path'],   moduleName,                   runT['userT']['cwd']))
++                               runT['userT']['exec_path'],   moduleName,                   runT['userT']['cwd'],
++                               runT['userT'].get('tasksnode',0), runT['userT'].get('taskssocket', 0), runT['userT'].get('hwthreads', 0),
++                               runT['userT'].get('run_line', 'None')))
+         run_id   = cursor.lastrowid
+ 
+ 
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/libexec/xalt_parse_mpirun_args.py 0.6.0/libexec/xalt_parse_mpirun_args.py
+--- 0.6.0.orig/libexec/xalt_parse_mpirun_args.py	2016-01-22 19:40:30.196622000 +0000
++++ 0.6.0/libexec/xalt_parse_mpirun_args.py	2016-04-25 13:59:21.991872000 +0100
+@@ -97,7 +97,16 @@
+     if (not path):
+       path    = which(find_cmd(ignoreT, i, argA)) or "unknown"
+     ntasks  = compute_ntasks(t)
+-    resultA.append({'exec_prog':path, 'ntasks':ntasks})
++
++    # **EPCC** Modified to get more properties
++    userDict = {}
++    userDict['exec_prog'] = path
++    userDict['ntasks'] = ntasks
++    userDict['tasksnode'] = int(t.get('tasksnode', 0))
++    userDict['taskssocket'] = int(t.get('taskssocket', 0))
++    userDict['hwthreads'] = int(t.get('hwthreads', 0))
++    # resultA.append({'exec_prog':path, 'ntasks':ntasks, 'tasksnode': t.get('tasksnode')})
++    resultA.append(userDict)
+ 
+     # Loop for colons
+     done = True
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/libexec/xalt_run_submission.py 0.6.0/libexec/xalt_run_submission.py
+--- 0.6.0.orig/libexec/xalt_run_submission.py	2016-01-22 19:40:30.183620000 +0000
++++ 0.6.0/libexec/xalt_run_submission.py	2016-05-16 14:31:32.191666000 +0100
+@@ -170,13 +170,14 @@
+ 
+ class UserEnvT(object):
+   """ Class to extract important values from the environment """
+-  def __init__(self, args, uuid, ntasks, userExec):
++  def __init__(self, args, uuid, ntasks, rundict, userExec):
+     """
+     Ctor to construct the important user env values and store them in userT.
+ 
+     @param args:     The parsed command line arguments.
+     @param uuid:     The uuid string.
+     @param ntasks:   The number of tasks.
++    @param rundict:  Dictionary of options pulled from the run command
+     @param userExec: the path to the user executable.
+     """
+     ltime                 = time.time()
+@@ -198,6 +199,11 @@
+     userT['exec_epoch']   = userExec.execEpoch()
+     userT['execModify']   = userExec.execModify()
+ 
++    # **EPCC** Modified to get additional values from dict
++    for key, value in rundict.iteritems():
++       if key == "exec_prog" or key == "ntasks": continue
++       userT[key]   = value
++
+     self.__userT = userT
+     
+   def userT(self):
+@@ -315,6 +321,21 @@
+     Also remove any exported shell functions.
+     """
+ 
++    # *EPCC* whitelist of env vars to track
++    keepKeyA = [
++      re.compile(r'^CRAYOS_.*$'),
++      re.compile(r'^CRAYPE_.*$'),
++      re.compile(r'^HOSTNAME$'),
++      re.compile(r'^LOADEDMODULES$'),
++      re.compile(r'^MODULEPATH$'),
++      re.compile(r'^PATH$'),
++      re.compile(r'^PBS_.*$'),
++      re.compile(r'^PYTHONPATH$'),
++      re.compile(r'^TMPDIR$'),
++      re.compile(r'^XALT_.*$'),
++      re.compile(r'^SHELL$'),
++    ]
++
+     # blacklist of env vars not to track
+     ignoreKeyA = [
+       re.compile(r'^HIST.*$'),
+@@ -339,11 +360,15 @@
+     envT = {}
+     for k in os.environ:
+       v = os.environ[k]
+-      keep = True
+-      for pat in ignoreKeyA:
++# **EPCC** Modified to use whitelist rather than blacklist
++#      keep = True
++      keep = False
++#      for pat in ignoreKeyA:
++      for pat in keepKeyA:
+         m = pat.search(k)
+         if (m):
+-          keep = False
++#          keep = False
++          keep = True
+           break
+       m = shFuncPat.search(v)
+       if (m):
+@@ -374,8 +399,18 @@
+       for i in xrange(N):
+         fnA     = []
+         uuid = capture(args.uuidgen)[0:-1]
+-        fnA.append(os.environ.get("HOME","/"))
+-        fnA.append("/.xalt.d/run.")
++
++        # **EPCC** Where to send the output: custom location or not
++        custom_loc = os.environ.get("XALT_FILE_TRANSMIT_LOC")
++        if custom_loc is not None:
++           # Location specified in environment variable
++           fnA.append(custom_loc)
++           fnA.append("/run.")
++        else:
++           # Default location in user's home directory
++           fnA.append(os.environ.get("HOME","/"))
++           fnA.append("/.xalt.d/run.")
++
+         fnA.append(args.syshost)
+         fnA.append(".")
+         fnA.append(dateStr)
+@@ -399,8 +434,8 @@
+           print ("User path is: ",os.environ.get("PATH"), file=sys.stderr)
+         continue
+ 
+-      userT    = UserEnvT(args, uuid, run['ntasks'], userExec).userT()
+-  
++      userT    = UserEnvT(args, uuid, run['ntasks'], run, userExec).userT()
++
+       submitT              = {}
+       submitT['userT']     = userT
+       submitT['xaltLinkT'] = ExtractXALT(userExec.execName()).xaltRecordT()
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/libexec/xalt_transmission_factory.py 0.6.0/libexec/xalt_transmission_factory.py
+--- 0.6.0.orig/libexec/xalt_transmission_factory.py	2016-01-22 19:40:30.303623000 +0000
++++ 0.6.0/libexec/xalt_transmission_factory.py	2016-05-16 14:32:20.366914000 +0100
+@@ -195,11 +195,15 @@
+     try:
+       if (not os.path.isdir(dirname)):
+         os.mkdir(dirname);
+-    
++
++      # **EPCC** Change permissions so non-root user can access files
++      os.chmod(dirname, 0o777)
+       f = open(tmpFn,"w")
+       f.write(s)
+       f.close()
++      os.chmod(tmpFn, 0o666)
+       os.rename(tmpFn, self.__fn)
++      os.chmod(self.__fn, 0o666)
+     except:
+       pass
+ 
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/libexec/xalt_util.py 0.6.0/libexec/xalt_util.py
+--- 0.6.0.orig/libexec/xalt_util.py	2016-01-22 19:40:30.210611000 +0000
++++ 0.6.0/libexec/xalt_util.py	2016-05-16 14:32:57.630098000 +0100
+@@ -73,7 +73,8 @@
+       p=p_parent()
+   except ImportError:
+     ignore_programs = ['pstree', 'ld', 'collect2', 'python', 'sh']
+-    pstree_bin = "/home/y07/y07/cse/xalt/libexec/pstree"
++    # **EPCC** Modified to allow dynamic location for executable
++    pstree_bin = os.environ.get("XALT_DIR") + "/libexec/pstree"
+     pstree = capture("%s -l -s %d" % (pstree_bin, os.getpid())).strip()
+     if (pstree == "unknown"):
+       return result
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/sbin/xalt_file_to_db.py 0.6.0/sbin/xalt_file_to_db.py
+--- 0.6.0.orig/sbin/xalt_file_to_db.py	2016-01-22 19:42:04.079160000 +0000
++++ 0.6.0/sbin/xalt_file_to_db.py	2016-05-16 14:34:37.702617000 +0100
+@@ -172,7 +172,10 @@
+   use in testing.
+   """
+ 
++  # If XALT_USERS is set then this supercedes other options
+   xaltUserA = os.environ.get("XALT_USERS")
++  # **EPCC** If XALT_USERS is not set and XALT_FILE_TRANSMIT_LOC is set then we use this
++  xaltFileBase = os.environ.get("XALT_FILE_TRANSMIT_LOC")
+   if (xaltUserA):
+     for user in xaltUserA.split(":"):
+       idx = user.find(";")
+@@ -182,13 +185,17 @@
+       else:
+         hdir = os.path.expanduser("~" + user)
+       yield user, hdir
+-
++  elif (xaltFileBase):
++    # This gets all the subdirectories of the base directory
++    # **EPCC** This gets a lit of users by looking existing subdirectories
++    xaltDirA = filter(os.path.isdir, [os.path.join(xaltFileBase,f) for f in os.listdir(xaltFileBase)])
++    for hdir in xaltDirA:
++      user = os.path.basename(hdir)
++      yield user, hdir
+   else:
+     for entry in getent.passwd():
+       yield entry.name, entry.dir
+ 
+-
+-
+ def main():
+   """
+   Walks the list of users via the passwd_generator and load the
+@@ -203,9 +210,24 @@
+   XALT_Stack.push(" ".join(sA))
+ 
+   args   = CmdLineOptions().execute()
+-  xalt   = XALTdb(dbConfigFn(args.dbname))
+ 
+-  num    = int(capture("getent passwd | wc -l"))
++  # **EPCC** Decide where we get the configuration file from
++  xaltDBConfigFile = os.environ.get("XALT_ETC_DIR")
++  if xaltDBConfigFile is None:
++    xaltDBConfigFile = dbConfigFn(args.dbname)
++  else:
++    xaltDBConfigFile = os.path.join(xaltDBConfigFile, "xalt_db.conf")
++  xalt   = XALTdb(xaltDBConfigFile)
++
++  # If this is set then we are getting files from a custom location
++  xaltFileBase = os.environ.get("XALT_FILE_TRANSMIT_LOC")
++  num = 0 
++  if (xaltFileBase):
++    xaltDirA = filter(os.path.isdir, [os.path.join(xaltFileBase,f) for f in os.listdir(xaltFileBase)])
++    num = len(xaltDirA)
++  else:
++    num    = int(capture("getent passwd | wc -l"))
++  if num == 0: num = 1
+   pbar   = ProgressBar(maxVal=num)
+   icnt   = 0
+ 
+@@ -219,7 +241,17 @@
+ 
+   for user, hdir in passwd_generator():
+     XALT_Stack.push("User: " + user)
++
++    # Where to look for the output
+     xaltDir = os.path.join(hdir,".xalt.d")
++    custom_loc = os.environ.get("XALT_FILE_TRANSMIT_BASE")
++    if custom_loc is not None:
++       # Location specified in environment variable
++       xaltDir = os.path.join(custom_loc, user)
++    elif (xaltFileBase):
++       # If XALT_FILE_TRANSMIT_LOC is set then we just use the base directory
++       xaltDir = hdir
++    
+     if (os.path.isdir(xaltDir)):
+       iuser   += 1
+       linkFnA  = files_in_tree(xaltDir, "*/link.*.json")
+diff -Naur -x '*.pyc' -x '*.orig' 0.6.0.orig/site/xalt_find_exec_aprun.py 0.6.0/site/xalt_find_exec_aprun.py
+--- 0.6.0.orig/site/xalt_find_exec_aprun.py	2016-01-22 19:42:04.292161000 +0000
++++ 0.6.0/site/xalt_find_exec_aprun.py	2016-05-16 14:35:27.685874000 +0100
+@@ -50,15 +50,10 @@
+   '--exclude-node-list-file'  : 1,
+   '-F'                        : 1,
+   '--access-mode'             : 1,
+-  '-j'                        : 1,
+-  '--CPUs'                    : 1,
+   '-L'                        : 1,
+   '-l'                        : 1,
+   '-m'                        : 1,
+-  '-N'                        : 1,
+   '--memory-per-pe'           : 1,
+-  '--pes'                     : 1,
+-  '--pes-per-node'            : 1,
+   '-p'                        : 1,
+   '--p-governor'              : 1,
+   '--p-state'                 : 1,
+@@ -66,8 +61,6 @@
+   '--specialized-cpus'        : 1,
+   '-R'                        : 1,
+   '--relaunch'                : 1,
+-  '-S'                        : 1,
+-  '--pes-per-numa-node'       : 1,
+   '-sl'                       : 1,
+   '--numa-node-list'          : 1,
+   '-sn'                       : 1,
+@@ -76,10 +69,18 @@
+   '--cpu-time-limit'          : 1,
+ }
+ 
++# **EPCC** Added additional options to properties mapping
+ npT = {
+   '-n'                        : "tasks",
++  '--pes'                     : "tasks",
+   '-d'                        : "threads",
+   '--cpus-per-pe'             : "threads",
++  '-N'                        : "tasksnode",
++  '--pes-per-node'            : "tasksnode",
++  '-j'                        : "hwthreads",
++  '--CPUs'                    : "hwthreads",
++  '-S'                        : "taskssocket",
++  '--pes-per-numa-node'       : "taskssocket",
+ }  
+ 
+ 
