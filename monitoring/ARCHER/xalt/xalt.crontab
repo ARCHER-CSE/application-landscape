@@ -1,0 +1,4 @@
+# Get new XALT data from ARCHER
+0 5,17 * * * /usr/bin/rsync -arv --remove-source-files user@login.archer.ac.uk:/home/y07/y07/xalt/* /disk/archer-logs0/home/user/xalt_logs/ >> logs/download/$(date --rfc-3339=date).xalt_download 2>&1
+# Ingest data into DB
+0 6,18 * * * /disk/archer-logs0/home/user/bin/xalt_ingest_and_archive.bash 2>&1
