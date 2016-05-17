@@ -70,6 +70,16 @@ The crontab in this repository shows the commands used.
 The standard build instructions for XALT from the documentation were 
 followed to install XALT on ARCHER in "/home/y07/y07/cse/xalt/0.6.0".
 
+Before building the following commands were issued:
+
+   module swap PrgEnv-cray PrgEnv-gnu
+   export XALT_DIR=/home/y07/y07/cse/xalt/0.6.0
+   export PATH=$XALT_DIR/lua/bin:$PATH
+
+To build "lua" we used:
+
+   ./configure --prefix=$XALT_DIR/lua
+
 ### Changes to the source ###
 
 Once the standard install was completed we made the changes required to 
