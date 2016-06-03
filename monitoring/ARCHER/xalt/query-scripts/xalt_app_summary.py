@@ -18,6 +18,12 @@ from code_def import CodeDef
 def main(argv):
 
     #=======================================================
+    # Configuration
+    #=======================================================
+    sizeBinsA = [1, 2, 3, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+    timeBinsA = [1, 3, 6, 12, 24]
+
+    #=======================================================
     # Read any code definitions
     #=======================================================
     appConfigDir = '/disk/archer-logs0/home/aturner/application-landscape/monitoring/ARCHER/xalt/descriptions'
@@ -80,7 +86,7 @@ def main(argv):
     # Loop over codes getting total usage
     appUseT = pt.PrettyTable(['App', 'Users', 'Jobs', '% Jobs', 'Usage / kAU', '% Usage'])
     appStatT = pt.PrettyTable(['App', 'Min', 'Q1', 'Median', 'Q3', 'Max', 'Mean Size by Use'])
-    appP = pb.ProgressBar(maxval=nApp)
+#    appP = pb.ProgressBar(maxval=nApp)
     i = 0
     appP.start()
     for app in appA:
@@ -101,12 +107,36 @@ def main(argv):
             useSum = 0.0
             quartiles = [ 0, 0, 0 ]
             qval = [appTotUse*0.25, appTotUse*0.5, appTotUse*0.75]
+            useD = {}
+            jobD = {}
+            for time in timeBinsA:
+                for size in sizeBinsA:
+                    useD[(time, size)] = 0.0
+                    jobD[(time, size)] = 0
+            for size in sizeBinsA:
+                useD[('>48', size)] = 0.0
+                jobD[('>48', size)] = 0
+
             for rowA in appDataA:
-                useSum += rowA[3]
                 nodes = rowA[0]
+                runtime  = rowA[1]
+                jobs  = rowA[2]
+                use = rowA[3]
+                useSum += use
                 if qval[0] >= useSum: quartiles[0] = nodes
                 if qval[1] >= useSum: quartiles[1] = nodes
                 if qval[2] >= useSum: quartiles[2] = nodes
+                jtime = '>48'
+                for time in timeBinsA:
+                    if runtime > time: break
+                    jtime = time
+                jsize = '1'
+                for size in timeBinsA:
+                    if nodes > size: break
+                    jsize = size
+                useD[(jtime, jsize)] += use
+                jobD[(jtime, jsize)] += job
+                
 
             meanByUse = appTotWeight/appTotUse
             
@@ -115,9 +145,9 @@ def main(argv):
             appUseT.add_row([app.name, appUsers, appSumA[2], pJob, appSumA[3], pUse])
             appStatT.add_row([app.name, appMinA[0]] + quartiles + [appMaxA[0], meanByUse])
         xq.dropView(xaltC, appV)
-        appP.update(i)
+#        appP.update(i)
         i += 1
-    appP.finish()
+#    appP.finish()
 
     appUseT.sortby = 'Usage / kAU'
     appUseT.reversesort = True
@@ -145,7 +175,6 @@ def main(argv):
     xaltDB.close()
     sys.exit(0)
 
-          
 if __name__ == "__main__":
     main(sys.argv[1:])
 
