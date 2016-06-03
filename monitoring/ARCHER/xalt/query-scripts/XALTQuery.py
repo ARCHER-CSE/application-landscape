@@ -2,38 +2,7 @@
 # Python module with base functions for querying the XALT database
 #
 import MySQLdb
-import sys
 import prettytable as pt
-import csv
-
-#####################################################################
-# Functions for getting project and username mappings
-#####################################################################
-def readProjectCSV(infile):
-    """Read project metadata from a CSV file and return lists
-
-    Args:
-        infile (string): The name of the CSV file
-
-    Returns:
-        Tuple of lists:
-           (
-             projAreaD (dict, string): Project research area,
-             projTypeD (dict, string): Project class,
-             projFundD (dict, string): Project funding body
-           )
-    """
-    projAreaD = {}
-    projTypeD = {}
-    projFundD = {}
-    with open(infile, 'r') as csvfile:
-       projectR = csv.reader(csvfile)
-       for row in projectR:
-          code = row[0].strip()
-          projAreaD[code] = row[1].strip()
-          projTypeD[code] = row[2].strip()
-          projFundD[code] = row[3].strip()
-    return (projAreaD, projTypeD, projFundD)
 
 def getUserProjectMap(xaltC):
     """Generate list of known users and their groups from database
@@ -59,12 +28,13 @@ def getUserProjectMap(xaltC):
                 userProjectMapD[username] += ':{}'.format(project)
           else:
              userProjectMapD[username] = project
- 
+
     except MySQLdb.Error, e:
        print ("Error %d: %s" % (e.args[0], e.args[1]))
        print "Unable to generate user -> project map"
 
     return userProjectMapD
+
 
 #####################################################################
 # Functions for querying total usage

@@ -20,7 +20,7 @@
 
 [code info]
 name: Unified Model
-regexp: ^[a-z]{5}\.exe|um_atmos
+regexp: x[a-z]{4}\.|um_atmos|um-atmos|um-recon|ga30_|goml2_|HadCM3|qxreconf|KPP_ocean
 
 [metadata]
 primary language: Fortran
