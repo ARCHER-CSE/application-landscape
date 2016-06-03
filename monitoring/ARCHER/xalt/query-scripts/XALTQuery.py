@@ -105,6 +105,67 @@ SELECT
 
     return (totjobs, totkau)
 
+def getAppUsers(xaltC, xaltAppV):
+    """Get the number of users from app view
+    """
+    appUsers = None
+    query = """
+SELECT
+    COUNT(DISTINCT(user))
+    FROM {0}
+    """.format(xaltAppV)
+    try:
+       xaltC.execute(query)
+       results = xaltC.fetchone()
+       appUsers = results[0]
+    except MySQLdb.Error, e:
+       print ("Error %d: %s" % (e.args[0], e.args[1]))
+       print "Unable to get application users"
+       dropView(xaltC, xaltAppV)
+       return None
+
+    return appUsers
+
+def getAppData(xaltC, xaltAppV):
+    """Get the total jobs and usage from application view
+    """
+    results = None
+    query = """
+SELECT 
+    Nodes,
+    WalltimeH,
+    COUNT(1) AS Jobs,
+    SUM(0.36*run_time*Nodes/3600) AS kAU,
+    SUM(0.36*run_time*Nodes*Nodes/3600) AS Weight
+    FROM (
+        SELECT
+            uuid,
+            run_time,
+            CEIL(run_time/3600) AS WalltimeH,
+            CASE
+                WHEN tasks_per_node > 0 THEN
+                   CEIL(num_cores/tasks_per_node)
+                WHEN num_cores < 24 THEN
+                   1
+                ELSE
+                   CEIL(num_cores/24)
+            END as Nodes
+            FROM {0}
+    ) AS T
+    GROUP BY Nodes, WalltimeH
+    ORDER BY Nodes
+    """.format(xaltAppV)
+    try:
+       xaltC.execute(query)
+       results = xaltC.fetchall()
+    except MySQLdb.Error, e:
+       print ("Error %d: %s" % (e.args[0], e.args[1]))
+       print "Unable to get total stats"
+       dropView(xaltC, xaltAppV)
+       return None
+
+    return results
+
 #####################################################################
 # Functions for querying linker usage
 #####################################################################
