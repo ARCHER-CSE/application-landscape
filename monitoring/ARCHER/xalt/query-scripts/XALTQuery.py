@@ -75,6 +75,28 @@ SELECT
 
     return (totjobs, totkau)
 
+#####################################################################
+# Functions for querying application usage
+#####################################################################
+def updateAppName(xaltC, appName, appRegexp):
+    """Get the number of users from app view
+    """
+    query = """
+UPDATE
+    xalt_run
+    SET
+        app = "{0}"
+    WHERE
+        exec_path REGEXP "{1}"
+    AND
+        app is NULL
+    """.format(appName, appRegexp)
+    try:
+       xaltC.execute(query)
+    except MySQLdb.Error, e:
+       print ("Error %d: %s" % (e.args[0], e.args[1]))
+       print "Unable to set application name"
+
 def getAppUsers(xaltC, xaltAppV):
     """Get the number of users from app view
     """
@@ -265,9 +287,9 @@ SELECT
        suiteSumD[suite] = 0
        suiteUseD[suite] = 0
        suiteJobsD[suite] = 0
-    resLinkT = pt.PrettyTable(['Language'] + compileSuiteA + ['Total'])
-    resUseT = pt.PrettyTable(['Language'] + compileSuiteA + ['Total'])
-    resJobsT = pt.PrettyTable(['Language'] + compileSuiteA + ['Total'])
+    resLinkT = pt.PrettyTable([''] + compileSuiteA + ['Total'])
+    resUseT = pt.PrettyTable([''] + compileSuiteA + ['Total'])
+    resJobsT = pt.PrettyTable([''] + compileSuiteA + ['Total'])
     for lang in compileLangA:
        langSum = 0
        langUse = 0
@@ -305,23 +327,20 @@ SELECT
     resUseT.add_row(useA + [totUse]) 
     resJobsT.add_row(jobA + [totJobs]) 
 
-    print "\nAll link events broken down by compile langauge and compiler suite:"
+    print "\nAll link events: compiler suite vs. compiler language:"
     resLinkT.align = "r"
-    resLinkT.align["Language"] = "c"
     print resLinkT, "\n"
     print "Unidentified link events: {}\n".format(other)
 
-    print "\nLimited run usage (in kAU) broken down by compile langauge and compiler suite (for known link events):"
+    print "\nLimited run usage [kAU] (for known link events): compiler suite vs. compiler language"
     resUseT.align = "r"
-    resUseT.align["Language"] = "c"
     resUseT.float_format = '.3'
     print resUseT, "\n"
 
     print "Unidentified usage: {}\n".format(otherUse)
 
-    print "\nLimited jobs broken down by compile langauge and compiler suite (for known link events):"
+    print "\nLimited jobs (for known link events): compiler suite vs. compiler language"
     resJobsT.align = "r"
-    resJobsT.align["Language"] = "c"
     print resJobsT, "\n"
 
     print "Unidentified jobs: {}\n".format(otherJobs)
@@ -386,8 +405,8 @@ SELECT
              jobsD[(nthread, size)] += njobs 
              break
 
-    resUseT = pt.PrettyTable(['Threads'] + sizeBinsA + ['Total', '%'])
-    resJobT = pt.PrettyTable(['Threads'] + sizeBinsA + ['Total', '%'])
+    resUseT = pt.PrettyTable([''] + sizeBinsA + ['Total', '%'])
+    resJobT = pt.PrettyTable([''] + sizeBinsA + ['Total', '%'])
     sizeUseSumA = len(sizeBinsA) * [0.0]
     sizeJobSumA = len(sizeBinsA) * [0]
     totUse = 0.0
@@ -424,15 +443,13 @@ SELECT
     resJobT.add_row(['Total'] + sizeJobSumA + [totJob, pJob])
     resJobT.add_row(['%'] + [100.0*float(x)/totjobs for x in sizeJobSumA] + [100.0*float(totJob)/totjobs, ''])
 
-    print "\nUsage (in kAU) broken down by threads and job size (in Nodes):"
+    print "\nUsage (in kAU): job size [Nodes] vs. number of threads:"
     resUseT.align = "r"
-    resUseT.align["Threads"] = "c"
     resUseT.float_format = '.3'
     resUseT.float_format['%'] = '.2'
     print resUseT
-    print "\nJobs broken down by threads and job size (in Nodes):"
+    print "\nJobs: job size [Nodes] vs. number of threads:"
     resJobT.align = "r"
-    resJobT.align["Threads"] = "c"
     resJobT.float_format = '.2'
     print resJobT
 

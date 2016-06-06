@@ -89,9 +89,9 @@ def main(argv):
 
     # Loop over codes getting total usage
     for app in appA:
-        appRegexp = app.regexp
+        appName = app.name
         # Create the view for this app
-        appV = xq.createRunView(xaltC, "exec_path", appRegexp)
+        appV = xq.createRunView(xaltC, "app", appName)
         appUsers = xq.getAppUsers(xaltC, appV)
         appDataA = xq.getAppData(xaltC, appV)
         if appUsers > 0:
