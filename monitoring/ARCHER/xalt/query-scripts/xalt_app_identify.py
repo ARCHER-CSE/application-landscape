@@ -21,7 +21,7 @@ def main(argv):
     #=======================================================
     # Read any code definitions
     #=======================================================
-    appConfigDir = '/disk/archer-logs0/home/aturner/application-landscape/monitoring/ARCHER/xalt/descriptions'
+    appConfigDir = os.environ['XALT_APP_DESCRIPTIONS']
     appA = []
     nApp = 0
     # Create a dictionary of codes

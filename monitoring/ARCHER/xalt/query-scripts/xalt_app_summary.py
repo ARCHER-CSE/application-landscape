@@ -27,7 +27,7 @@ def main(argv):
     #=======================================================
     # Read any code definitions
     #=======================================================
-    appConfigDir = '/disk/archer-logs0/home/aturner/application-landscape/monitoring/ARCHER/xalt/descriptions'
+    appConfigDir = os.environ['XALT_APP_DESCRIPTIONS']
     appA = []
     nApp = 0
     # Create a dictionary of codes
@@ -89,6 +89,7 @@ def main(argv):
 
     # Loop over codes getting total usage
     for app in appA:
+        print "\n{0}:".format(app.name)
         appName = app.name
         # Create the view for this app
         appV = xq.createRunView(xaltC, "app", appName)
