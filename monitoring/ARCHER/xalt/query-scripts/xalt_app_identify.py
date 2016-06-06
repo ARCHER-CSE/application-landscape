@@ -61,7 +61,7 @@ def main(argv):
     for app in appA:
         appName = app.name
         appRegexp = app.regexp
-        xq.updateAppName(xaltC, appName, appRegexp)
+        xq.updateAppName(xaltDB, xaltC, appName, appRegexp)
     
     # Close the database and exit nicely
     xaltDB.close()
