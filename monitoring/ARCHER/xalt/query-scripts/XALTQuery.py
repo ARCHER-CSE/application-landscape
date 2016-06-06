@@ -78,7 +78,7 @@ SELECT
 #####################################################################
 # Functions for querying application usage
 #####################################################################
-def updateAppName(xaltC, appName, appRegexp):
+def updateAppName(xaltDB, xaltC, appName, appRegexp):
     """Get the number of users from app view
     """
     query = """
@@ -93,8 +93,10 @@ UPDATE
     """.format(appName, appRegexp)
     try:
        xaltC.execute(query)
+       xaltDB.commit()
        print "{0}: updated {1} records".format(appName, xaltC.rowcount)
     except MySQLdb.Error, e:
+       xaltDB.rollback()
        print ("Error %d: %s" % (e.args[0], e.args[1]))
        print "Unable to set application name"
 
