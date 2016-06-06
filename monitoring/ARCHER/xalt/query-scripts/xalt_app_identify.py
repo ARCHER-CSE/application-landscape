@@ -5,14 +5,10 @@
 import MySQLdb
 import sys
 import getopt
-import prettytable as pt
 import os
 import fnmatch
-import numpy as np
-import progressbar as pb
 
 import XALTQuery as xq
-import ReportUtil as ru
 
 from code_def import CodeDef
 
