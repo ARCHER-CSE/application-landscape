@@ -87,12 +87,13 @@ UPDATE
     SET
         app = "{0}"
     WHERE
-        exec_path REGEXP "{1}"
-    AND
         app is NULL
+    AND
+        exec_path REGEXP "{1}"
     """.format(appName, appRegexp)
     try:
        xaltC.execute(query)
+       print "{0}: updated {1} records".format(appName, xaltC.rowcount)
     except MySQLdb.Error, e:
        print ("Error %d: %s" % (e.args[0], e.args[1]))
        print "Unable to set application name"

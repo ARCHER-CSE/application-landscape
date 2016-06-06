@@ -46,7 +46,7 @@ def main(argv):
     project = None
     configFile = None
     for opt, arg in opts:
-       elif opt in ('-c', '--config'):
+       if opt in ('-c', '--config'):
            configFile = arg.strip()
 
     #=======================================================
